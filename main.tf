@@ -189,6 +189,20 @@ resource "aws_key_pair" "fss_auth" {
 }
 
 #rdbms server
+
+resource "aws_ebs_volume" "fss_rdbms_dev_u01" {
+  availability_zone = "${aws_instance.fss_rdbms_dev.availability_zone}"
+  type = "gp2"
+  size = 40
+}
+
+resource "aws_volume_attachment" "fss_rdbms_dev_u01_volume_attachment" {
+ device_name = "/dev/xvdb"
+ instance_id = "${aws_instance.fss_rdbms_dev.id}"
+ volume_id   = "${aws_ebs_volume.fss_rdbms_dev_u01.id}"
+ skip_destroy = true
+}
+
 resource "aws_instance" "fss_rdbms_dev" {
   instance_type = "${var.dev_instance_type}"
   ami           = "${var.dev_ami}"
@@ -201,8 +215,11 @@ resource "aws_instance" "fss_rdbms_dev" {
   vpc_security_group_ids = ["${aws_security_group.fss_dev_sg.id}"]
   iam_instance_profile   = "${var.s3_access_profile}"
   subnet_id              = "${aws_subnet.fss_public_subnet.id}"
+  user_data              = "${file("fss_attach_ebs.sh")}"
+ 
 
 }
+
 
 #------------outputs----------------
 output "rdbms public ip" {
