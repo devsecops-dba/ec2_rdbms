@@ -4,89 +4,89 @@ provider "aws" {
 
 #-------------VPC-----------
 
-resource "aws_vpc" "fss_vpc" {
+resource "aws_vpc" "sanjeevk_vpc" {
   cidr_block           = "${var.vpc_cidr}"
   enable_dns_hostnames = true
   enable_dns_support   = true
 
   tags {
-    Name = "fss_vpc"
+    Name = "sanjeevk_vpc"
   }
 }
 
 #internet gateway
 
-resource "aws_internet_gateway" "fss_internet_gateway" {
-  vpc_id = "${aws_vpc.fss_vpc.id}"
+resource "aws_internet_gateway" "sanjeevk_internet_gateway" {
+  vpc_id = "${aws_vpc.sanjeevk_vpc.id}"
   tags {
-    Name = "fss_igw"
+    Name = "sanjeevk_igw"
   }
 }
 
 # Route tables
 
-resource "aws_route_table" "fss_public_rt" {
-  vpc_id = "${aws_vpc.fss_vpc.id}"
+resource "aws_route_table" "sanjeevk_public_rt" {
+  vpc_id = "${aws_vpc.sanjeevk_vpc.id}"
 
   route {
     cidr_block = "0.0.0.0/0"
-    gateway_id = "${aws_internet_gateway.fss_internet_gateway.id}"
+    gateway_id = "${aws_internet_gateway.sanjeevk_internet_gateway.id}"
   }
 
   tags {
-    Name = "fss_public"
+    Name = "sanjeevk_public_rt"
   }
 }
 
-resource "aws_default_route_table" "fss_private_rt" {
-  default_route_table_id = "${aws_vpc.fss_vpc.default_route_table_id}"
+resource "aws_default_route_table" "sanjeevk_private_rt" {
+  default_route_table_id = "${aws_vpc.sanjeevk_vpc.default_route_table_id}"
 
   tags {
-    Name = "fss_private"
+    Name = "sanjeevk_private_rt"
   }
 }
 
-resource "aws_subnet" "fss_public_subnet" {
-  vpc_id                  = "${aws_vpc.fss_vpc.id}"
+resource "aws_subnet" "sanjeevk_public_subnet" {
+  vpc_id                  = "${aws_vpc.sanjeevk_vpc.id}"
   cidr_block              = "${var.cidrs["public"]}"
   map_public_ip_on_launch = true
   availability_zone       = "${data.aws_availability_zones.available.names[0]}"
 
   tags {
-    Name = "fss_public"
+    Name = "sanjeevk_public_sn"
   }
 }
 
-resource "aws_subnet" "fss_private_subnet" {
-  vpc_id                  = "${aws_vpc.fss_vpc.id}"
+resource "aws_subnet" "sanjeevk_private_subnet" {
+  vpc_id                  = "${aws_vpc.sanjeevk_vpc.id}"
   cidr_block              = "${var.cidrs["private"]}"
   map_public_ip_on_launch = false
   availability_zone       = "${data.aws_availability_zones.available.names[0]}"
 
   tags {
-    Name = "fss_private"
+    Name = "sanjeevk_private_sn"
   }
 }
 
 
 # Subnet Associations
 
-resource "aws_route_table_association" "fss_public_assoc" {
-  subnet_id      = "${aws_subnet.fss_public_subnet.id}"
-  route_table_id = "${aws_route_table.fss_public_rt.id}"
+resource "aws_route_table_association" "sanjeevk_public_assoc" {
+  subnet_id      = "${aws_subnet.sanjeevk_public_subnet.id}"
+  route_table_id = "${aws_route_table.sanjeevk_public_rt.id}"
 }
 
-resource "aws_route_table_association" "fss_private_assoc" {
-  subnet_id      = "${aws_subnet.fss_private_subnet.id}"
-  route_table_id = "${aws_default_route_table.fss_private_rt.id}"
+resource "aws_route_table_association" "sanjeevk_private_assoc" {
+  subnet_id      = "${aws_subnet.sanjeevk_private_subnet.id}"
+  route_table_id = "${aws_default_route_table.sanjeevk_private_rt.id}"
 }
 
 #Security groups
 
-resource "aws_security_group" "fss_dev_sg" {
-  name        = "fss_dev_sg"
+resource "aws_security_group" "sanjeevk_dev_sg" {
+  name        = "sanjeevk_dev_sg"
   description = "Used for access to the dev instance"
-  vpc_id      = "${aws_vpc.fss_vpc.id}"
+  vpc_id      = "${aws_vpc.sanjeevk_vpc.id}"
 
   #SSH
 
@@ -115,10 +115,10 @@ resource "aws_security_group" "fss_dev_sg" {
 
 #Public Security group
 
-resource "aws_security_group" "fss_public_sg" {
-  name        = "fss_public_sg"
+resource "aws_security_group" "sanjeevk_public_sg" {
+  name        = "sanjeevk_public_sg"
   description = "Used for public and private instances for load balancer access"
-  vpc_id      = "${aws_vpc.fss_vpc.id}"
+  vpc_id      = "${aws_vpc.sanjeevk_vpc.id}"
 
   #HTTP 
 
@@ -141,10 +141,10 @@ resource "aws_security_group" "fss_public_sg" {
 
 #Private Security Group
 
-resource "aws_security_group" "fss_private_sg" {
-  name        = "fss_private_sg"
+resource "aws_security_group" "sanjeevk_private_sg" {
+  name        = "sanjeevk_private_sg"
   description = "Used for private instances"
-  vpc_id      = "${aws_vpc.fss_vpc.id}"
+  vpc_id      = "${aws_vpc.sanjeevk_vpc.id}"
 
   # Access from other security groups
   ingress {
@@ -162,10 +162,10 @@ resource "aws_security_group" "fss_private_sg" {
 }
 
 #rdbms security group
-resource "aws_security_group" "fss_rdbms_sg" {
-  name        = "fss_rdbms_sg"
+resource "aws_security_group" "sanjeevk_rdbms_sg" {
+  name        = "sanjeevk_rdbms_sg"
   description = "Used for DB instances"
-  vpc_id      = "${aws_vpc.fss_vpc.id}"
+  vpc_id      = "${aws_vpc.sanjeevk_vpc.id}"
 
   # sql access from public/private security group
   ingress {
@@ -173,9 +173,9 @@ resource "aws_security_group" "fss_rdbms_sg" {
     to_port   = 1521
     protocol  = "tcp"
 
-    security_groups = ["${aws_security_group.fss_dev_sg.id}",
-      "${aws_security_group.fss_public_sg.id}",
-      "${aws_security_group.fss_private_sg.id}",
+    security_groups = ["${aws_security_group.sanjeevk_dev_sg.id}",
+      "${aws_security_group.sanjeevk_public_sg.id}",
+      "${aws_security_group.sanjeevk_private_sg.id}",
     ]
   }
 }
@@ -183,45 +183,39 @@ resource "aws_security_group" "fss_rdbms_sg" {
 #---------compute-----------
 #key pair
 
-resource "aws_key_pair" "fss_auth" {
+resource "aws_key_pair" "sanjeevk_auth" {
   key_name   = "${var.key_name}"
   public_key = "${file(var.public_key_path)}"
 }
 
-#rdbms server
+#user_data
+data "template_file" "user_data" {
+  template = "${file("${path.module}/bootstrap.sh")}"
 
-resource "aws_ebs_volume" "fss_rdbms_dev_u01" {
-  availability_zone = "${aws_instance.fss_rdbms_dev.availability_zone}"
-  type = "gp2"
-  size = 40
+  vars {
+    region = "${var.aws_region}"
+    avail_zone = "${"aws_subnet".sanjeevk_public_subnet.availability_zone}"
+  }
 }
 
-resource "aws_volume_attachment" "fss_rdbms_dev_u01_volume_attachment" {
- device_name = "/dev/xvdb"
- instance_id = "${aws_instance.fss_rdbms_dev.id}"
- volume_id   = "${aws_ebs_volume.fss_rdbms_dev_u01.id}"
- skip_destroy = true
-}
-
-resource "aws_instance" "fss_rdbms_dev" {
+# ec2 instance
+resource "aws_instance" "sanjeevk_rdbms_dev" {
   instance_type = "${var.dev_instance_type}"
   ami           = "${var.dev_ami}"
 
   tags {
-    Name = "fss_rdbms_dev"
+    Name = "sanjeevk_rdbms_dev"
   }
 
-  key_name               = "${aws_key_pair.fss_auth.id}"
-  vpc_security_group_ids = ["${aws_security_group.fss_dev_sg.id}"]
-  iam_instance_profile   = "${var.s3_access_profile}"
-  subnet_id              = "${aws_subnet.fss_public_subnet.id}"
-  user_data              = "${file("fss_attach_ebs.sh")}"
- 
-
+  key_name               = "${aws_key_pair.sanjeevk_auth.id}"
+  vpc_security_group_ids = ["${aws_security_group.sanjeevk_dev_sg.id}"]
+  iam_instance_profile   = "${var.profile}"
+  subnet_id              = "${aws_subnet.sanjeevk_public_subnet.id}"
+  user_data              = "${data.template_file.user_data.rendered}"
 }
 
 
 #------------outputs----------------
 output "rdbms public ip" {
-   value = "${aws_instance.fss_rdbms_dev.public_ip}"
+   value = "${aws_instance.sanjeevk_rdbms_dev.public_ip}"
 }
