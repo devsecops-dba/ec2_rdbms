@@ -165,11 +165,18 @@ do
   echo "has_partition:$${has_partition}"
     if [ "$${has_partition}" == "data" ]; then
       sudo mkfs -t ext4 $${fs_device}
+    fi
+  echo "mounting file system"
       sudo mkdir -p $${fs_mount}
       sudo mount $${fs_device} $${fs_mount}
       # Persist the volume in /etc/fstab so it gets mounted again
       echo "$${fs_device} $${fs_mount} ext4 defaults,nofail 0 2" | sudo tee -a /etc/fstab
-    fi
   fi
 done
+
+
+
+
+
+
 echo "end of bootstrap.sh script"
