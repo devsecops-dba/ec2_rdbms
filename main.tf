@@ -194,6 +194,7 @@ data "template_file" "user-init" {
   vars {
     region = "${var.aws_region}"
     avail_zone = "${aws_subnet.sanjeevk_public_subnet.availability_zone.id}"
+    rdbms_bucket = "${var.rdbms_bucket}"
   }
 }
 

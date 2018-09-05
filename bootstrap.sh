@@ -2,6 +2,15 @@
 # Oracle Database Bootstrapping OL73HVM
 #
 #
+#
+function configOL73HVM() {
+    sed -i 's/4096/16384/g' /etc/security/limits.d/20-nproc.conf
+    sed -i 's/SELINUX=enforcing/SELINUX=permissive/g' /etc/selinux/config
+    service iptables stop
+    systemctl disable iptables.service
+}
+
+
 function install_packages() {
     echo "[INFO] Calling: yum install -y $$@"
     yum install -y $$@ > /dev/null
@@ -87,11 +96,18 @@ function get_instance_id() {
 echo "value of variable region is : ${region}"
 # print region variable passed from tf script
 echo "value of variable availability-zone is : ${avail_zone}"
+# print rdbms_bucket variable passed from tf script
+echo "value of variable rdbms_bucket is : ${rdbms_bucket}"
 practice_area=fss
 
-# install unzip
-echo "installing unzip"
+# yum update
+cd /tmp
+export PATH=$PATH:/usr/local/bin
+cd /etc/yum.repos.d
+echo "installing [un]zip"
+sudo yum install zip -y
 sudo yum install unzip -y
+#
 # install awscli
 echo "installing awscli"
 curl "https://s3.amazonaws.com/aws-cli/awscli-bundle.zip" -o "awscli-bundle.zip"
@@ -174,6 +190,12 @@ do
   fi
 done
 
+# sync software rsp files from s3 to host under /tmp
+aws s3 cp s3://${rdbms_bucket}/ /tmp --recursive  --exclude "*" --include "*.rsp"
+
+#
+echo "calling configOL73HVM"
+configOL73HVM()
 
 
 

@@ -11,3 +11,4 @@ variable "dev_instance_type" {}
 variable "dev_ami" {}
 variable "profile" {}
 variable "myfile" {}
+variable "rdbms_bucket" {}
