@@ -11,10 +11,12 @@ function attach_volume () {
   fs_device=$1
   instance_id=$2
   volume_id=$3
+  region=$4
   cmd_output=$(aws ec2 attach-volume \
         --device $${fs_device} \
         --instance-id $${instance_id} \
-        --volume-id$ $${volume_id} \
+        --volume-id $${volume_id} \
+        --region ${region} \
          2>&1)
    return_code=$?
    echo "$${return_code}:$${cmd_output}"
@@ -23,7 +25,9 @@ function attach_volume () {
 #
 function get_volume_status() {
   volume_id=$1
-  cmd_output=$(aws ec2 describe-volumes \
+  region=$2
+  cmd_output=$$(aws ec2 describe-volumes \
+        --region ${region} \
         --volume-ids $${volume_id} \
         --query Volumes[].State \
         --output text \
@@ -39,7 +43,7 @@ function create_volume() {
   size=$3
   fs_device=$4
   pratice_area=$5
-  cmd_output=$(aws ec2 create-volume \
+  cmd_output=$$(aws ec2 create-volume \
         --availability-zone ${avail_zone} \
         --size $${size} \
         --volume-type gp2 \
@@ -55,7 +59,7 @@ function get_volume_id() {
   avail_zone=$2
   fs_device=$3
   practice_area=$4
-  cmd_output=$(aws ec2 describe-volumes \
+  cmd_output=$$(aws ec2 describe-volumes \
         --region ${region} \
         --filters \
             Name=availability-zone,Values=${avail_zone} \
@@ -129,14 +133,15 @@ do
   fi
 
   # get volume status for given vol_id
-  result=$$(get_volume_status "$$ebs_volume_id")
+  result=$$(get_volume_status "$$ebs_volume_id" "$region")
   return_code=`echo $$result |awk  -F":" '{print $1}'`
   ebs_volume_state=`echo $$result |awk -F":" '{print $2}'`
 
   # if aws cmd succeeds and volstatus is not attached
   if [[ ($$return_code -eq 0) && ( $${ebs_volume_state} == "available" ) ]]; then
     echo "Volume for $${fs_device} has status: $${ebs_volume_state}"
-    result=$(attach_volume "$$fs_device" "$$instance_id" "$$ebs_volume_id")
+    result=$$(attach_volume "$$fs_device" "$$instance_id" "$$ebs_volume_id" "$region")
+    echo "result:$$result"
     return_code=`echo $$result |awk  -F":" '{print $1}'`
     output=`echo $$result |awk -F":" '{print $2}'`
 
@@ -150,8 +155,12 @@ do
   fi
 
   #
+  # sleep for /dev/xvd to attach fully to instance
+  echo "Sleeping 30 secs.."
+  sleep 30 
   # Format /dev/nnn> if it does not contain a partition yet
   if [[ $${fs_mount} != "none" ]]; then
+  echo "sudo file -b -s $${fs_device}"
   has_partition=`sudo file -b -s $${fs_device}`
   echo "has_partition:$${has_partition}"
     if [ "$${has_partition}" == "data" ]; then

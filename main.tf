@@ -98,7 +98,6 @@ resource "aws_security_group" "sanjeevk_dev_sg" {
   }
 
   #HTTP
-
   ingress {
     from_port   = 80
     to_port     = 80
@@ -189,12 +188,12 @@ resource "aws_key_pair" "sanjeevk_auth" {
 }
 
 #user_data
-data "template_file" "user_data" {
-  template = "${file("${path.module}/bootstrap.sh")}"
+data "template_file" "user-init" {
+   template = "${file("bootstrap.sh")}"
 
   vars {
     region = "${var.aws_region}"
-    avail_zone = "${"aws_subnet".sanjeevk_public_subnet.availability_zone}"
+    avail_zone = "${aws_subnet.sanjeevk_public_subnet.availability_zone.id}"
   }
 }
 
@@ -211,7 +210,7 @@ resource "aws_instance" "sanjeevk_rdbms_dev" {
   vpc_security_group_ids = ["${aws_security_group.sanjeevk_dev_sg.id}"]
   iam_instance_profile   = "${var.profile}"
   subnet_id              = "${aws_subnet.sanjeevk_public_subnet.id}"
-  user_data              = "${data.template_file.user_data.rendered}"
+  user_data              = "${data.template_file.user-init.rendered}"
 }
 
 
