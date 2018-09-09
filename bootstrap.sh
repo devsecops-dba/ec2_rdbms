@@ -21,7 +21,7 @@ function attach_volume () {
   instance_id=$2
   volume_id=$3
   region=$4
-  cmd_output=$(aws ec2 attach-volume \
+  cmd_output=$$(aws ec2 attach-volume \
         --device $${fs_device} \
         --instance-id $${instance_id} \
         --volume-id $${volume_id} \
@@ -57,7 +57,8 @@ function create_volume() {
         --size $${size} \
         --volume-type gp2 \
         --region ${region} \
-        --tag-specifications "ResourceType=volume,Tags=[{Key=PracticeArea,Value=$$practice_area},{Key=Name,Value=sanjeevk_rdbms_ebs_vol},{Key=DeviceName,Value=$$fs_device}]")
+        --tag-specifications "ResourceType=volume,Tags=[{Key=PracticeArea,Value=$$practice_area},{Key=Name,Value=sanjeevk_rdbms_ebs_vol},{Key=DeviceName,Value=$$fs_device}]" \
+        2>&1 )
    return_code=$?
    sleep 30
    echo "$${return_code}:$${cmd_output}"
@@ -115,7 +116,7 @@ unzip awscli-bundle.zip
 sudo ./awscli-bundle/install -i /usr/local/aws -b /usr/local/bin/aws
 # 
 # create and attach ebs volumes
-device_list=("/dev/xvdb|20|/u01" "/dev/xvdc|20|none")
+device_list=("/dev/xvdb|20|/u01" "/dev/xvdc|20|none" "/dev/xvdt|40|/stage")
 instance_id=`echo $(get_instance_id)`
 #
 for device in "$${device_list[@]}"
@@ -130,13 +131,20 @@ do
 
   # get volume_id for fs_device
   result=$$(get_volume_id "$region" "$avail_zone" "$$fs_device" "$$practice_area")
+  echo "result is :$$result"
+  echo "-------------------"
   return_code=`echo $$result |awk  -F":" '{print $1}'`
   ebs_volume_id=`echo $$result |awk -F":" '{print $2}'`
 
   # if aws cmd succeeds and volid does not exist create it
   if [[ ($$return_code -eq 0) && ( -z "$$ebs_volume_id" ) ]]; then
     result=$$(create_volume "$region" "$avail_zone" "$$size" "$$fs_device" "$$practice_area")
+    echo "result for create_volume is: $$result"
     return_code=`echo $$result |awk  -F":" '{print $1}'`
+    # call get_volume_id
+    result=$$(get_volume_id "$region" "$avail_zone" "$$fs_device" "$$practice_area")
+    ebs_volume_id=`echo $$result |awk -F":" '{print $2}'`
+    # done with call
     ebs_volume_id=`echo $$result |awk -F":" '{print $2}'`
     if [[ ($$return_code -eq 0) && ( -n "$$ebs_volume_id" )]]; then
       echo "Volume for $${fs_device} was newly created with volume_id:$${ebs_volume_id}"
@@ -150,6 +158,7 @@ do
 
   # get volume status for given vol_id
   result=$$(get_volume_status "$$ebs_volume_id" "$region")
+  echo "result:$$result"
   return_code=`echo $$result |awk  -F":" '{print $1}'`
   ebs_volume_state=`echo $$result |awk -F":" '{print $2}'`
 
@@ -190,13 +199,31 @@ do
   fi
 done
 
-# sync software rsp files from s3 to host under /tmp
-aws s3 cp s3://${rdbms_bucket}/ /tmp --recursive  --exclude "*" --include "*.rsp"
+# sync software files from s3 to host under /stage
+aws s3 cp s3://${rdbms_bucket}/ /stage --recursive  --exclude "*" --include "*.rpm" --include "*grid*zip"
 
 #
 echo "calling configOL73HVM"
-configOL73HVM()
+configOL73HVM
 
+# Update Kernel parameters to Oracle Documentation recommended values
+cp /etc/sysctl.conf /etc/sysctl.conf_backup
+cat /etc/sysctl.conf | grep -v shmall | grep -v shmmax >/etc/sysctl.conf_txt
+mv -f /etc/sysctl.conf_txt /etc/sysctl.conf
+echo '#input parameters ' >>/etc/sysctl.conf
+echo 'fs.file-max = 6815744' >>/etc/sysctl.conf
+echo 'kernel.sem = 250 32000 100 128' >>/etc/sysctl.conf
+echo 'kernel.shmmni = 4096' >>/etc/sysctl.conf
+echo kernel.shmall = ${shmall} >>/etc/sysctl.conf
+echo kernel.shmmax = ${shmmax} >>/etc/sysctl.conf
+echo 'net.core.rmem_default = 262144' >>/etc/sysctl.conf
+echo 'net.core.rmem_max = 4194304' >>/etc/sysctl.conf
+echo 'net.core.wmem_default = 262144' >>/etc/sysctl.conf
+echo 'net.core.wmem_max = 1048576' >>/etc/sysctl.conf
+echo 'fs.aio-max-nr = 1048576' >>/etc/sysctl.conf
+echo 'net.ipv4.ip_local_port_range = 9000 65500' >>/etc/sysctl.conf
+# Activate Kernel parameter updated
+/sbin/sysctl -p
 
 
 
