@@ -84,19 +84,12 @@ function get_instance_id() {
 #
 function provision_storage () {
    # create and attach ebs volumes
-   device_list=("/dev/xvdb|20|/u01" \
-                "/dev/xvdc|20|none" \
-                "/dev/xvdd|20|none" \
-                "/dev/xvde|20|none" \
-                "/dev/xvdf|20|none" \
-                "/dev/xvdg|20|none" \
-                "/dev/xvdh|20|none" \
-                "/dev/xvdi|20|none" \
-                "/dev/xvdj|20|none" \
-                "/dev/xvdk|20|none" \
-                "/dev/xvdx|20|none" \ 
-                "/dev/xvdt|40|/stage" \
-                )
+   device_list=("/dev/xvdb|20|/u01" "/dev/xvdc|20|none" \
+                "/dev/xvdd|20|none" "/dev/xvde|20|none" \
+                "/dev/xvdf|20|none" "/dev/xvdg|20|none" \
+                "/dev/xvdh|20|none" "/dev/xvdi|20|none" \
+                "/dev/xvdj|20|none" "/dev/xvdk|20|none" \
+                "/dev/xvdx|20|none" "/dev/xvdt|40|/stage")
    #
    instance_id=`echo $(get_instance_id)`
    #
