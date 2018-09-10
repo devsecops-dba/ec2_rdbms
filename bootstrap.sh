@@ -412,7 +412,8 @@ function install_grid () {
      touch /tmp/oracleexec.log
      chown oracle:dba /tmp/oracleexec.log
      chmod 755 /stage/oracleexec.sh
-     echo "started /stage/oracleexec.sh"
+     echo "Running /stage/oracleexec.sh"
+     echo "Monitor progress in /tmp/oracleexec.log"
      echo "----------------------------"
      sudo su -l oracle -c '/stage/oracleexec.sh' &> /tmp/oracleexec.log
      echo "----------------------------"
