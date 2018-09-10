@@ -95,7 +95,8 @@ function provision_storage () {
                 "/dev/xvdj|20|none" \
                 "/dev/xvdk|20|none" \
                 "/dev/xvdx|20|none" \ 
-                "/dev/xvdt|40|/stage")
+                "/dev/xvdt|40|/stage" \
+                )
    #
    instance_id=`echo $(get_instance_id)`
    #
