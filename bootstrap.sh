@@ -3,13 +3,6 @@
 #
 #
 #
-function configOL73HVM() {
-    sed -i 's/4096/16384/g' /etc/security/limits.d/20-nproc.conf
-    sed -i 's/SELINUX=enforcing/SELINUX=permissive/g' /etc/selinux/config
-    service iptables stop
-    systemctl disable iptables.service
-}
-
 
 function install_packages() {
     echo "[INFO] Calling: yum install -y $$@"
@@ -93,6 +86,7 @@ function get_instance_id() {
 #
 # main
 # variables
+echo "MAIN program from bootstrap.sh script"
 # print region variable passed from tf script
 echo "value of variable region is : ${region}"
 # print region variable passed from tf script
@@ -116,7 +110,7 @@ unzip awscli-bundle.zip
 sudo ./awscli-bundle/install -i /usr/local/aws -b /usr/local/bin/aws
 # 
 # create and attach ebs volumes
-device_list=("/dev/xvdb|20|/u01" "/dev/xvdc|20|none" "/dev/xvdt|40|/stage")
+device_list=("/dev/xvdb|20|/u01" "/dev/xvdc|20|none" "/dev/xvdd|20|none" "/dev/xvde|20|none" "/dev/xvdf|20|none" "/dev/xvdg|20|none" "/dev/xvdh|20|none" "/dev/xvdi|20|none" "/dev/xvdj|20|none" "/dev/xvdk|20|none" "/dev/xvdx|20|none" "/dev/xvdt|40|/stage")
 instance_id=`echo $(get_instance_id)`
 #
 for device in "$${device_list[@]}"
@@ -200,13 +194,25 @@ do
 done
 
 # sync software files from s3 to host under /stage
-aws s3 cp s3://${rdbms_bucket}/ /stage --recursive  --exclude "*" --include "*.rpm" --include "*grid*zip"
+echo "syncing software from s3"
+aws s3 sync s3://${rdbms_bucket}/ /stage --exclude "*" --include "*.rpm" --include "*zip"
 
-#
-echo "calling configOL73HVM"
-configOL73HVM
+#unzip binaries
+echo "unzipping binaries"
+unzip -qo /stage/linuxamd64_12102_database_1of2.zip -d /stage
+unzip -qo /stage/linuxamd64_12102_database_2of2.zip -d /stage
+unzip -qo /stage/linuxamd64_12102_grid_1of2.zip -d /stage
+unzip -qo /stage/linuxamd64_12102_grid_2of2.zip -d /stage
+
+# update security limits
+echo "updating security limits"
+sed -i 's/4096/16384/g' /etc/security/limits.d/20-nproc.conf
+sed -i 's/SELINUX=enforcing/SELINUX=permissive/g' /etc/selinux/config
+service iptables stop
+systemctl disable iptables.service
 
 # Update Kernel parameters to Oracle Documentation recommended values
+echo "updating kernel parameters"
 cp /etc/sysctl.conf /etc/sysctl.conf_backup
 cat /etc/sysctl.conf | grep -v shmall | grep -v shmmax >/etc/sysctl.conf_txt
 mv -f /etc/sysctl.conf_txt /etc/sysctl.conf
@@ -225,6 +231,143 @@ echo 'net.ipv4.ip_local_port_range = 9000 65500' >>/etc/sysctl.conf
 # Activate Kernel parameter updated
 /sbin/sysctl -p
 
+# Update user limit for Oracle limits recommended values
+echo "updating user limits"
+cp /etc/security/limits.conf /etc/security/limits.conf_backup
+cat /etc/security/limits.conf | grep -v End >/etc/security/limits.conf_txt
+mv -f /etc/security/limits.conf_txt /etc/security/limits.conf
+echo '#input parameters added from bootstrap script' >>/etc/security/limits.conf
+echo 'oracle   soft   nofile    1024' >>/etc/security/limits.conf
+echo 'oracle   hard   nofile    65536' >>/etc/security/limits.conf
+echo 'oracle   soft   nproc    16384' >>/etc/security/limits.conf
+echo 'oracle   hard   nproc    16384' >>/etc/security/limits.conf
+echo 'oracle   soft   stack    10240' >>/etc/security/limits.conf
+echo 'oracle   hard   stack    32768' >>/etc/security/limits.conf
+echo '# End of file' >>/etc/security/limits.conf
+
+# Create Oracle user
+echo "create oracle user"
+groupadd -g 54321 oinstall
+groupadd -g 54322 dba
+groupadd -g 54323 oper
+useradd -u 54321 -g oinstall -G dba,oper oracle
+
+# create grid and rdbms home directories
+echo "create grid and rdbms home directories"
+mkdir -p /u01/app/oracle/product/12c/db_1
+mkdir -p /u01/app/oracle/product/12c/grid
+
+# install asm modules
+echo "installing asm modules"
+install_packages kmod-oracleasm
+install_packages oracleasm-support
+rpm -Uvh /stage/oracleasmlib-2.0.12-1.el7.x86_64.rpm
+
+# change permissions to oracle:oinstall on /u01 and /stage
+chown -R oracle:oinstall /u01 /stage
+chmod -R 775 /u01 /stage
+
+#Configure oracleasm module and initialize it
+echo "configure oracleasm module"
+oracleasm configure -u oracle -g dba -b -s y -e
+oracleasm init
+
+# Make partitions to the ASM RECO and DATA disks
+echo "making partitions for ASM RECO and DATA disks"
+echo -e 'o\nn\np\n1\n\n\nw' | fdisk /dev/xvdc
+echo -e 'o\nn\np\n1\n\n\nw' | fdisk /dev/xvdd
+echo -e 'o\nn\np\n1\n\n\nw' | fdisk /dev/xvde
+echo -e 'o\nn\np\n1\n\n\nw' | fdisk /dev/xvdf
+echo -e 'o\nn\np\n1\n\n\nw' | fdisk /dev/xvdg
+echo -e 'o\nn\np\n1\n\n\nw' | fdisk /dev/xvdh
+echo -e 'o\nn\np\n1\n\n\nw' | fdisk /dev/xvdi
+echo -e 'o\nn\np\n1\n\n\nw' | fdisk /dev/xvdj
+echo -e 'o\nn\np\n1\n\n\nw' | fdisk /dev/xvdk
+sync
+# Updated DISK headers to assign an ASM DISKGROUP
+echo "oracleasm creating disks..."
+oracleasm createdisk RECO1 /dev/xvdc1  || echo "success"
+oracleasm createdisk RECO2 /dev/xvdd1  || echo "success"
+oracleasm createdisk RECO3 /dev/xvde1  || echo "success"
+oracleasm createdisk DATA1 /dev/xvdf1  || echo "success"
+oracleasm createdisk DATA2 /dev/xvdg1  || echo "success"
+oracleasm createdisk DATA3 /dev/xvdh1  || echo "success"
+oracleasm createdisk DATA4 /dev/xvdi1  || echo "success"
+oracleasm createdisk DATA5 /dev/xvdj1  || echo "success"
+oracleasm createdisk DATA6 /dev/xvdk1  || echo "success"
+# Restart oracleasm
+oracleasm init
+# install kernel packages
+YUM_PACKAGES=(
+    xorg-x11-xauth.x86_64
+    xorg-x11-server-utils.x86_64
+    dbus-x11.x86_64
+    binutils
+    compat-libcap1
+    gcc
+    gcc-c++
+    glibc
+    glibc.i686
+    glibc-devel
+    glibc-devel.i686
+    ksh
+    libgcc
+    libgcc.i686
+    libstdc++
+    libstdc++.i686
+    libstdc++-devel
+    libstdc++-devel.i686
+    libaio
+    libaio.i686
+    libaio-devel
+    libaio-devel.i686
+    libXext
+    libXext.i686
+    libXtst
+    libXtst.i686
+    libX11
+    libX11.i686
+    libXau
+    libXau.i686
+    libxcb
+    libxcb.i686
+    libXi
+    libXi.i686
+    make
+    sysstat
+    unixODBC
+    unixODBC-devel
+    java
+    compat-libstdc++-33
+)
+echo "installing yum packages"
+install_packages $${YUM_PACKAGES[@]}
+# Update Oracle user profile
+echo "export TMP=/tmp" >>/home/oracle/.bash_profile
+echo "export TMPDIR=/tmp" >>/home/oracle/.bash_profile
+echo "export ORACLE_BASE=/u01/app/oracle" >>/home/oracle/.bash_profile
+echo "export ORACLE_HOME=/u01/app/oracle/product/12c/db_1" >>/home/oracle/.bash_profile
+echo "export ORACLE_SID=TESTDB" >>/home/oracle/.bash_profile
+echo "export PATH=/usr/sbin:$$PATH" >>/home/oracle/.bash_profile
+echo "export PATH=/u01/app/oracle/product/12c/db_1/bin:$$PATH" >>/home/oracle/.bash_profile
+echo "export LD_LIBRARY_PATH=/u01/app/oracle/product/12c/db_1/lib:/lib:/usr/lib" >>/home/oracle/.bash_profile
+echo "export CLASSPATH=/u01/app/oracle/product/12c/db_1/jlib:/u01/app/oracle/product/12c/db_1/rdbms/jlib" >>/home/oracle/.bash_profile
+# Make a SWAP space available and update fsta
+mkswap /dev/xvdx
+swapon /dev/xvdx
+echo "/dev/xvdx    swap      swap    defaults       0 0">>/etc/fstab
+# Update permission for Oracle user to sudo and to ssh
+echo "updating oracle user sudo access"
+mkdir -p /home/oracle/.ssh
+cp /home/ec2-user/.ssh/authorized_keys /home/oracle/.ssh/.
+chown oracle:dba /home/oracle/.ssh /home/oracle/.ssh/authorized_keys
+chmod 600 /home/oracle/.ssh/authorized_keys
+echo "oracle ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
+REQ_TTY=0
+if [ $$(cat /etc/sudoers | grep '^Defaults' | grep -c '!requiretty') -eq 0 ] ; then
+    sed -i 's/requiretty/!requiretty/g' /etc/sudoers
+    REQ_TTY=1
+fi
 
 
 
