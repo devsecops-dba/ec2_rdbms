@@ -388,17 +388,5 @@ echo "started /stage/oracleexec.sh"
 echo "----------------------------"
 /usr/sbin/oracleasm scandisks
 sudo su -l oracle -c '/stage/oracleexec.sh' &> /tmp/oracleexec.log
-echo "execute:-> oraInstRoot.sh"
 echo "----------------------------"
-sudo /u01/app/oraInventory/orainstRoot.sh &>> /tmp/oracleexec.log
-echo "execute:-> run grid root.sh"
-echo "----------------------------"
-sudo /u01/app/oracle/product/12c/grid/root.sh &>> /tmp/oracleexec.log
-echo "execute:-> configTollAllCommands"
-echo "----------------------------"
-/u01/app/oracle/product/12c/grid/cfgtoollogs/configToolAllCommands RESPONSE_FILE=/stage/asm-config.rsp
-echo "create diskgroups.."
-echo "----------------------------"
-/u01/app/oracle/product/12c/grid/bin/asmca -silent -createDiskGroup -sysAsmPassword ${asmpass} -asmsnmpPassword ${asmpass} -diskGroupName RECO -diskList ORCL:RECO1,ORCL:RECO2,ORCL:RECO3 -redundancy EXTERNAL &>> /tmp/oracleexec.log
-
 echo "end of bootstrap.sh script"
