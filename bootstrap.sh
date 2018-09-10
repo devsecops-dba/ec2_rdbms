@@ -321,8 +321,9 @@ function rdbms_os_prereqs () {
       oracleasm init
       #
       touch /stage/asm_config_complete
+   else
+     echo "Skipping partitions for ASM disks"
    fi
-   echo "Skipping partitions for ASM disks"
 }
 #
 function os_changes() {
@@ -416,9 +417,9 @@ function install_grid () {
      sudo su -l oracle -c '/stage/oracleexec.sh' &> /tmp/oracleexec.log
      echo "----------------------------"
      touch /stage/grid_install_complete
+   else
+     echo "Skipping grid install"
    fi
-   #
-   echo "Skipping grid install"
 }
 
 # main
