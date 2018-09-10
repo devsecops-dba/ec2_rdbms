@@ -195,6 +195,10 @@ data "template_file" "user-init" {
     region = "${var.aws_region}"
     avail_zone = "${aws_subnet.sanjeevk_public_subnet.availability_zone.id}"
     rdbms_bucket = "${var.rdbms_bucket}"
+    shmall = "${var.shmall}"
+    shmmax = "${var.shmmax}"
+    asmpass = "${var.asmpass}"
+    dbport = "${var.dbport}"
   }
 }
 

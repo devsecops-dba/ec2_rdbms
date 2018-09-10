@@ -93,6 +93,10 @@ echo "value of variable region is : ${region}"
 echo "value of variable availability-zone is : ${avail_zone}"
 # print rdbms_bucket variable passed from tf script
 echo "value of variable rdbms_bucket is : ${rdbms_bucket}"
+# print asm_pass variable passed from tf script
+echo "value of variable asm_pass is : ${asmpass}"
+# print dbport variable passed from tf script
+echo "value of variable dbport is : ${dbport}"
 practice_area=fss
 
 # yum update
@@ -195,7 +199,7 @@ done
 
 # sync software files from s3 to host under /stage
 echo "syncing software from s3"
-aws s3 sync s3://${rdbms_bucket}/ /stage --exclude "*" --include "*.rpm" --include "*zip"
+aws s3 sync s3://${rdbms_bucket}/ /stage --exclude "*" --include "*.rpm" --include "*zip" --include "*.rsp"
 
 #unzip binaries
 echo "unzipping binaries"
@@ -369,6 +373,16 @@ if [ $$(cat /etc/sudoers | grep '^Defaults' | grep -c '!requiretty') -eq 0 ] ; t
     REQ_TTY=1
 fi
 
+#Install Oracle Grid infrastructure using grid-setup.rsp parameter file, to /u01/app/oracle/product/12c/grid home
+echo "silent install grid infrahome"
+HOSTN=`curl -s -m 30 'http://169.254.169.254/latest/meta-data/hostname'`
+sed -i s/changehostname/$${HOSTN}/g /stage/*.rsp 
+sed -i s/ASM_PASS/${asmpass}/g /stage/*.rsp 
+sed -i s/DATABASE_PORT/${dbport}/g /stage/*.rsp 
+/stage/grid/runInstaller -silent -ignorePrereq -responsefile /stage/grid-setup.rsp &>> /tmp/oracleexec.log
+# Wait until the installer asks for root.sh running scripts as this is asynchronous from shell execution
+timeout 900 grep -q '1. /u01/app/oraInventory/orainstRoot.sh' <(tail -f /tmp/oracleexec.log)
+echo runInstaller_end &>> /tmp/oracleexec.log
 
 
 echo "end of bootstrap.sh script"

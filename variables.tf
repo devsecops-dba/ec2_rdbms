@@ -12,3 +12,7 @@ variable "dev_ami" {}
 variable "profile" {}
 variable "myfile" {}
 variable "rdbms_bucket" {}
+variable "shmmax" {}
+variable "shmall" {}
+variable "asmpass" {}
+variable "dbport" {}
