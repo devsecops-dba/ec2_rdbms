@@ -295,7 +295,7 @@ function rdbms_os_prereqs () {
        REQ_TTY=1
    fi
    #
-   # only needed as EBS is attached to new ec2 instance
+   # only needed once as EBS is re-attached to new ec2 instance
    #
    if [[ ! -f /stage/asm_config_complete ]] ; then
       # Make partitions to the ASM RECO and DATA disks
