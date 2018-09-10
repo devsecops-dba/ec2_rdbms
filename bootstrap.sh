@@ -199,7 +199,9 @@ done
 
 # sync software files from s3 to host under /stage
 echo "syncing software from s3"
-aws s3 sync s3://${rdbms_bucket}/ /stage --exclude "*" --include "*.rpm" --include "*zip" --include "*.rsp"
+aws s3 sync s3://${rdbms_bucket}/ /stage --exclude "*" --include "*.rpm" --include "*zip" --include "*.rsp" --include "*.sh"
+strings /stage/oracleexec.sh > /stage/oracleexec_tmp.sh
+mv /stage/oracleexec_tmp.sh /stage/oracleexec.sh
 
 #unzip binaries
 echo "unzipping binaries"
@@ -379,10 +381,24 @@ HOSTN=`curl -s -m 30 'http://169.254.169.254/latest/meta-data/hostname'`
 sed -i s/changehostname/$${HOSTN}/g /stage/*.rsp 
 sed -i s/ASM_PASS/${asmpass}/g /stage/*.rsp 
 sed -i s/DATABASE_PORT/${dbport}/g /stage/*.rsp 
-/stage/grid/runInstaller -silent -ignorePrereq -responsefile /stage/grid-setup.rsp &>> /tmp/oracleexec.log
-# Wait until the installer asks for root.sh running scripts as this is asynchronous from shell execution
-timeout 900 grep -q '1. /u01/app/oraInventory/orainstRoot.sh' <(tail -f /tmp/oracleexec.log)
-echo runInstaller_end &>> /tmp/oracleexec.log
-
+touch /tmp/oracleexec.log
+chown oracle:dba /tmp/oracleexec.log
+chmod 755 /stage/oracleexec.sh
+echo "started /stage/oracleexec.sh"
+echo "----------------------------"
+/usr/sbin/oracleasm scandisks
+sudo su -l oracle -c '/stage/oracleexec.sh' &> /tmp/oracleexec.log
+echo "execute:-> oraInstRoot.sh"
+echo "----------------------------"
+sudo /u01/app/oraInventory/orainstRoot.sh &>> /tmp/oracleexec.log
+echo "execute:-> run grid root.sh"
+echo "----------------------------"
+sudo /u01/app/oracle/product/12c/grid/root.sh &>> /tmp/oracleexec.log
+echo "execute:-> configTollAllCommands"
+echo "----------------------------"
+/u01/app/oracle/product/12c/grid/cfgtoollogs/configToolAllCommands RESPONSE_FILE=/stage/asm-config.rsp
+echo "create diskgroups.."
+echo "----------------------------"
+/u01/app/oracle/product/12c/grid/bin/asmca -silent -createDiskGroup -sysAsmPassword ${asmpass} -asmsnmpPassword ${asmpass} -diskGroupName RECO -diskList ORCL:RECO1,ORCL:RECO2,ORCL:RECO3 -redundancy EXTERNAL &>> /tmp/oracleexec.log
 
 echo "end of bootstrap.sh script"
