@@ -177,6 +177,11 @@ function provision_storage () {
    mkswap /dev/xvdx
    swapon /dev/xvdx
    echo "/dev/xvdx    swap      swap    defaults       0 0">>/etc/fstab
+  
+   # dev/shm change
+   mount -o remount,size=3G /dev/shm
+   echo "tmpfs   /dev/shm        tmpfs   defaults        0       0" >> /etc/fstab
+
  
  }
 #
@@ -408,6 +413,7 @@ function install_grid () {
      HOSTN=`curl -s -m 30 'http://169.254.169.254/latest/meta-data/hostname'`
      sed -i s/changehostname/$${HOSTN}/g /stage/*.rsp 
      sed -i s/ASM_PASS/${asmpass}/g /stage/*.rsp 
+     sed -i s/DATABASE_PASS/${asmpass}/g /stage/*.rsp 
      sed -i s/DATABASE_PORT/${dbport}/g /stage/*.rsp 
      touch /tmp/oracleexec.log
      chown oracle:dba /tmp/oracleexec.log
@@ -440,5 +446,4 @@ practice_area=fss
 os_changes
 #call install_grid
 install_grid
-#
 echo "end of bootstrap.sh script"
