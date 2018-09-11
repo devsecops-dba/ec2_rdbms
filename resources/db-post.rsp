@@ -1,0 +1,6 @@
+oracle.assistants.server|S_SYSPASSWORD=DATABASE_PASS
+oracle.assistants.server|S_SYSTEMPASSWORD=DATABASE_PASS
+oracle.assistants.server|S_DBSNMPPASSWORD=DATABASE_PASS
+oracle.assistants.server|S_PDBADMINPASSWORD=DATABASE_PASS
+oracle.assistants.server|S_EMADMINPASSWORD=DATABASE_PASS
+oracle.assistants.server|S_ASMSNMPPASSWORD=QS_ASM_PASS
